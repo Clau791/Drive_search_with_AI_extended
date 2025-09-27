@@ -1,0 +1,11 @@
+/* Config corect pentru Tailwind v4 */
+@import "tailwindcss/preflight";
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
+
+/* Stiluri extra globale */
+body {
+  font-family: system-ui, sans-serif;
+  background-color: #f9fafb; /* bg-gray-50 */
+  color: #111827; /* text-gray-900 */
+}
