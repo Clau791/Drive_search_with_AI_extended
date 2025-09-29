@@ -24,9 +24,10 @@ Această aplicație web permite căutarea documentelor din **Google Drive** și 
 
 ### 1. Backend
 1. Asigură-te că ai Python 3.10+ și un cont Google Drive cu service account (`service.json`).
-2. Creează un `.env` cu cheia ta OpenAI:
+2. Creează o variabila de mediu cu cheia ta OpenAI in terminal(necesar restart pentru a putea fi recunoscuta):
    ```env
-   OPENAI_API_KEY=sk-xxxxx
+   setx OPENAI_API_KEY "sk-xxxxxxxx"
+    
 
 ### 2. 📂 Embeddings (pentru căutarea semantică)
 
