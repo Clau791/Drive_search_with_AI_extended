@@ -3,24 +3,31 @@ import React, { useState } from "react";
 /**
  * Tipuri pentru răspunsul de la backend (/ask)
  */
-export interface DocumentOut {
-  id?: string;
+export interface DocumentOutDrive {
+  id: string;
   name: string;
-  mimeType?: string;
-  webViewLink?: string;
-  webContentLink?: string; // pentru descărcare
+  mimeType: string;
+  webViewLink: string;
+  webContentLink?: string;
   createdTime?: string;
-  size?: string;
-  summary?: string; // rezumat generat de GPT (opțional)
+}
+
+export interface DocumentOutSemantic {
+  name: string;
+  text: string;
+  score: number;
 }
 
 export interface AskResponse {
   gpt_answer: string;
-  files: DocumentOut[];
+  refined_query?: string;
+  mode: "drive" | "semantic";
+  files?: DocumentOutDrive[];
+  results?: DocumentOutSemantic[];
 }
 
 /**
- * Baza de API – setează VITE_API_BASE în .env.local (Vite)
+ * Baza de API
  */
 const API_BASE: string =
   import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -41,17 +48,10 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
-/**
- * Cheie stabilă pentru .map() chiar dacă backend-ul nu returnează mereu id
- */
-function keyFor(doc: DocumentOut, idx: number): string {
-  return doc.id ?? doc.webViewLink ?? `${doc.name}-${idx}`;
-}
-
 export default function App(): React.ReactElement {
   const [query, setQuery] = useState<string>("");
-  const [results, setResults] = useState<DocumentOut[]>([]);
-  const [gptAnswer, setGptAnswer] = useState<string | null>(null);
+  const [useSemanticSearch, setUseSemanticSearch] = useState<boolean>(false);
+  const [response, setResponse] = useState<AskResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,12 +60,13 @@ export default function App(): React.ReactElement {
     if (!query.trim()) return;
     setLoading(true);
     setError(null);
-    setResults([]);
-    setGptAnswer(null);
+    setResponse(null);
     try {
-      const data = await postJSON<AskResponse>(`${API_BASE}/ask`, { query });
-      setGptAnswer(data.gpt_answer);
-      setResults(Array.isArray(data.files) ? data.files : []);
+      const data = await postJSON<AskResponse>(`${API_BASE}/ask`, { 
+        query,
+        use_semantic_search: useSemanticSearch
+      });
+      setResponse(data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -86,146 +87,300 @@ export default function App(): React.ReactElement {
         }}
       >
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
-          🔎 Document Search (Drive + GPT)
+          🔎 Document Search (Drive + Semantic)
         </h1>
         <p style={{ color: "#556", marginBottom: 16 }}>
-          Scrie o cerere în limbaj natural (ex.: „ultima factură de la furnizorul X”).
+          Scrie o cerere în limbaj natural. Alege modul de căutare dorit.
         </p>
 
         <form
           onSubmit={handleSearch}
-          style={{ display: "flex", gap: 8, marginBottom: 16 }}
+          style={{ marginBottom: 16 }}
         >
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ex: ultima factură de la furnizorul X"
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ex: ultima factură de la furnizorul X"
+              style={{
+                flex: 1,
+                padding: "10px 12px",
+                border: "1px solid #d0d7de",
+                borderRadius: 12,
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                padding: "10px 16px",
+                borderRadius: 12,
+                background: "#2563eb",
+                color: "#fff",
+                border: 0,
+                cursor: "pointer",
+              }}
+            >
+              Caută
+            </button>
+          </div>
+
+          <label
             style={{
-              flex: 1,
-              padding: "10px 12px",
-              border: "1px solid #d0d7de",
-              borderRadius: 12,
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              padding: "10px 16px",
-              borderRadius: 12,
-              background: "#2563eb",
-              color: "#fff",
-              border: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+              padding: "8px 12px",
+              background: useSemanticSearch ? "#dbeafe" : "#f1f5f9",
+              borderRadius: 8,
+              width: "fit-content",
+              transition: "background 0.2s",
             }}
           >
-            Caută
-          </button>
+            <input
+              type="checkbox"
+              checked={useSemanticSearch}
+              onChange={(e) => setUseSemanticSearch(e.target.checked)}
+              style={{ cursor: "pointer", width: 16, height: 16 }}
+            />
+            <span style={{ fontSize: 14, fontWeight: 500 }}>
+              {useSemanticSearch ? "🧠 Căutare Semantică" : "📁 Căutare Google Drive"}
+            </span>
+          </label>
         </form>
 
         {loading && <p style={{ color: "#64748b" }}>Se caută documente...</p>}
-        {error && <p style={{ color: "#dc2626" }}>{error}</p>}
-
-        {gptAnswer && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              background: "#f1f5f9",
-              borderRadius: 12,
-            }}
-          >
-            <strong>Răspuns GPT:</strong>
-            <pre style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>{gptAnswer}</pre>
+        {error && (
+          <div style={{
+            padding: 12,
+            background: "#fee2e2",
+            border: "1px solid #fca5a5",
+            borderRadius: 12,
+            color: "#dc2626",
+            marginBottom: 16
+          }}>
+            <strong>Eroare:</strong> {error}
           </div>
         )}
 
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-            display: "grid",
-            gap: 8,
-          }}
-        >
-          {results.map((doc, idx) => (
-            <li
-              key={keyFor(doc, idx)}
+        {response && (
+          <>
+            {/* Răspuns GPT */}
+            <div
               style={{
-                border: "1px solid #e5e7eb",
+                marginTop: 16,
+                padding: 16,
+                background: response.mode === "semantic" ? "#f0fdf4" : "#eff6ff",
                 borderRadius: 12,
-                padding: 12,
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
+                border: `1px solid ${response.mode === "semantic" ? "#bbf7d0" : "#bfdbfe"}`,
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600 }}>
-                    {doc.name ?? "(fără nume)"}
-                  </div>
-                  <div style={{ color: "#64748b", fontSize: 14 }}>
-                    {doc.mimeType ?? "unknown"}
-                    {doc.createdTime
-                      ? ` · ${new Date(doc.createdTime).toLocaleString()}`
-                      : ""}
-                    {doc.size ? ` · ${doc.size}B` : ""}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  {doc.webViewLink ? (
-                    <a
-                      href={doc.webViewLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "#2563eb" }}
-                    >
-                      Deschide
-                    </a>
-                  ) : (
-                    <span style={{ color: "#94a3b8" }}>fără link</span>
-                  )}
-                  {doc.webContentLink && (
-                    <a
-                      href={doc.webContentLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "#16a34a" }}
-                    >
-                      Descarcă
-                    </a>
-                  )}
-                </div>
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "center",
+                marginBottom: 8
+              }}>
+                <strong style={{ fontSize: 16 }}>
+                  {response.mode === "semantic" ? "🧠 Răspuns Semantic" : "📁 Răspuns Drive"}
+                </strong>
+                <span style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  background: response.mode === "semantic" ? "#86efac" : "#93c5fd",
+                  borderRadius: 6,
+                  fontWeight: 600
+                }}>
+                  {response.mode.toUpperCase()}
+                </span>
               </div>
-              {doc.summary && (
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "#334155",
-                    marginTop: 6,
-                    background: "#f1f5f9",
-                    padding: 8,
-                    borderRadius: 8,
-                  }}
-                >
-                  {doc.summary}
+              {response.refined_query && (
+                <div style={{
+                  fontSize: 13,
+                  color: "#059669",
+                  marginBottom: 8,
+                  fontStyle: "italic"
+                }}>
+                  Query rafinat: {response.refined_query}
                 </div>
               )}
-            </li>
-          ))}
-        </ul>
+              <pre style={{ 
+                whiteSpace: "pre-wrap", 
+                marginTop: 8,
+                fontSize: 14,
+                lineHeight: 1.6
+              }}>
+                {response.gpt_answer}
+              </pre>
+            </div>
 
-        {!loading && results.length === 0 && !error && (
-          <p style={{ color: "#94a3b8", marginTop: 8 }}>
-            Nu sunt rezultate încă. Încearcă o căutare.
-          </p>
+            {/* Rezultate Google Drive */}
+            {response.mode === "drive" && response.files && response.files.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
+                  📄 Documente găsite ({response.files.length})
+                </h3>
+                <ul
+                  style={{
+                    listStyle: "none",
+                    padding: 0,
+                    margin: 0,
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  {response.files.map((doc, idx) => (
+                    <li
+                      key={doc.id ?? idx}
+                      style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 12,
+                        padding: 12,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600 }}>
+                            {doc.name}
+                          </div>
+                          <div style={{ color: "#64748b", fontSize: 14 }}>
+                            {doc.mimeType}
+                            {doc.createdTime
+                              ? ` · ${new Date(doc.createdTime).toLocaleString()}`
+                              : ""}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 12 }}>
+                          {doc.webViewLink && (
+                            <a
+                              href={doc.webViewLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ 
+                                color: "#2563eb",
+                                textDecoration: "none",
+                                fontWeight: 500
+                              }}
+                            >
+                              Deschide
+                            </a>
+                          )}
+                          {doc.webContentLink && (
+                            <a
+                              href={doc.webContentLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ 
+                                color: "#16a34a",
+                                textDecoration: "none",
+                                fontWeight: 500
+                              }}
+                            >
+                              Descarcă
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Rezultate Semantic Search */}
+            {response.mode === "semantic" && response.results && response.results.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
+                  🎯 Documente relevante ({response.results.length})
+                </h3>
+                <ul
+                  style={{
+                    listStyle: "none",
+                    padding: 0,
+                    margin: 0,
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  {response.results.map((doc, idx) => (
+                    <li
+                      key={idx}
+                      style={{
+                        border: "1px solid #d1fae5",
+                        borderRadius: 12,
+                        padding: 12,
+                        background: doc.score > 0.8 ? "#ecfdf5" : "#fff",
+                      }}
+                    >
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "start",
+                        marginBottom: 8
+                      }}>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>
+                          {doc.name}
+                        </div>
+                        <div style={{
+                          fontSize: 12,
+                          padding: "4px 8px",
+                          background: doc.score > 0.8 ? "#34d399" : "#9ca3af",
+                          color: "#fff",
+                          borderRadius: 6,
+                          fontWeight: 600
+                        }}>
+                          {(doc.score * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize: 14,
+                        color: "#334155",
+                        lineHeight: 1.6,
+                        maxHeight: 120,
+                        overflow: "auto"
+                      }}>
+                        {doc.text.substring(0, 300)}
+                        {doc.text.length > 300 ? "..." : ""}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Mesaj când nu sunt rezultate */}
+            {response.mode === "drive" && (!response.files || response.files.length === 0) && (
+              <p style={{ color: "#94a3b8", marginTop: 16, textAlign: "center" }}>
+                Nu s-au găsit documente în Google Drive.
+              </p>
+            )}
+            {response.mode === "semantic" && (!response.results || response.results.length === 0) && (
+              <p style={{ color: "#94a3b8", marginTop: 16, textAlign: "center" }}>
+                Nu s-au găsit documente relevante.
+              </p>
+            )}
+          </>
+        )}
+
+        {!loading && !response && !error && (
+          <div style={{ 
+            textAlign: "center", 
+            padding: 32,
+            color: "#94a3b8"
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+            <p>Începe o căutare pentru a vedea rezultate.</p>
+          </div>
         )}
       </div>
     </div>
