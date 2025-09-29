@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from openai import OpenAI
 import os, json
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
+from googleapiclient.discovery import build  # type: ignore
+from google.oauth2 import service_account  # type: ignore
 from dotenv import load_dotenv
 
 # === Config FastAPI ===
