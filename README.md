@@ -28,14 +28,27 @@ Această aplicație web permite căutarea documentelor din **Google Drive** și 
    ```env
    OPENAI_API_KEY=sk-xxxxx
 
+### 📂 Embeddings (pentru căutarea semantică)
+
+Pentru a folosi căutarea semantică, trebuie să creezi fișierul embeddings.json.
+Acesta se generează cu scriptul pdf_extractor, care:
+- citește PDF-urile din Google Drive (folosind service account),
+- extrage textul din fiecare document,
+- generează vectori semantici (embeddings) cu OpenAI,
+- salvează rezultatul într-un fișier JSON.
+
+Exemplu de rulare:
+-------------------------------------------
+        python pdf_extractor.py           
+-------------------------------------------
+
 
 ### 🚀 Rulare Backend și Frontend
 
 #### 1. Backend
 Rulează serverul FastAPI:
-
 -------------------------------------------
-|  uvicorn main:app --reload --port 8000  |
+  uvicorn main:app --reload --port 8000  
 -------------------------------------------
 
 
@@ -50,9 +63,8 @@ Instalează dependențele:
 npm install
 
 Rulează aplicația React:
-
 -----------------------
-|      npm run dev    |
+       npm run dev    
 -----------------------
 
 #### Deschide aplicația în browser pe:
