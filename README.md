@@ -47,9 +47,9 @@ Exemplu de rulare:
 
 #### 1. Backend
 Rulează serverul FastAPI:
--------------------------------------------
-  uvicorn main:app --reload --port 8000  
--------------------------------------------
+--------------------------------------------------
+        uvicorn main:app --reload --port 8000  
+--------------------------------------------------
 
 
 Backend-ul va fi disponibil pe:
