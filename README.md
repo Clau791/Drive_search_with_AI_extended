@@ -28,7 +28,7 @@ Această aplicație web permite căutarea documentelor din **Google Drive** și 
    ```env
    OPENAI_API_KEY=sk-xxxxx
 
-### 📂 Embeddings (pentru căutarea semantică)
+### 2. 📂 Embeddings (pentru căutarea semantică)
 
 Pentru a folosi căutarea semantică, trebuie să creezi fișierul embeddings.json.
 Acesta se generează cu scriptul pdf_extractor, care:
