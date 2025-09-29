@@ -38,6 +38,7 @@ Rulează serverul FastAPI:
 |  uvicorn main:app --reload --port 8000  |
 -------------------------------------------
 
+
 Backend-ul va fi disponibil pe:
 http://localhost:8000
 
